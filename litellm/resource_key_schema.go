@@ -11,6 +11,11 @@ func resourceKeySchema() map[string]*schema.Schema {
 			Computed:  true,
 			Sensitive: true,
 		},
+		"token": {
+			Type:        schema.TypeString,
+			Computed:    true,
+			Description: "Hashed token identifier for the key (non-sensitive).",
+		},
 		"models": {
 			Type:     schema.TypeList,
 			Optional: true,

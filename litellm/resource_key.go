@@ -19,8 +19,14 @@ func resourceKey() *schema.Resource {
 		},
 		Schema: map[string]*schema.Schema{
 			"key": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Type:      schema.TypeString,
+				Computed:  true,
+				Sensitive: true,
+			},
+			"token": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "Hashed token identifier for the key (non-sensitive).",
 			},
 			"models": {
 				Type:     schema.TypeList,
@@ -145,7 +151,12 @@ func resourceKeyCreate(ctx context.Context, d *schema.ResourceData, m interface{
 		return diag.FromErr(fmt.Errorf("error creating key: %s", err))
 	}
 
-	d.SetId(createdKey.Key)
+	if createdKey.Token == "" {
+		return diag.FromErr(fmt.Errorf("API did not return a token for the created key"))
+	}
+	d.SetId(createdKey.Token)
+	d.Set("key", createdKey.Key)
+
 	return resourceKeyRead(ctx, d, m)
 }
 
@@ -162,14 +173,18 @@ func resourceKeyRead(ctx context.Context, d *schema.ResourceData, m interface{})
 		return nil
 	}
 
+	existingKey := d.Get("key").(string)
 	mapKeyToResourceData(d, key)
+	if existingKey != "" {
+		d.Set("key", existingKey)
+	}
 	return nil
 }
 
 func resourceKeyUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	c := m.(*Client)
 
-	key := &Key{Key: d.Id()}
+	key := &Key{Token: d.Id()}
 	mapResourceDataToKey(d, key)
 
 	_, err := c.UpdateKey(key)
@@ -234,6 +249,7 @@ func mapResourceDataToKey(d *schema.ResourceData, key *Key) {
 
 func mapKeyToResourceData(d *schema.ResourceData, key *Key) {
 	d.Set("key", key.Key)
+	d.Set("token", key.Token)
 
 	if len(key.Models) > 0 {
 		d.Set("models", key.Models)

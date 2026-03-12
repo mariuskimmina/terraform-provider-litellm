@@ -109,8 +109,8 @@ func (c *Client) CreateKey(key *Key) (*Key, error) {
 	return c.parseKeyResponse(resp)
 }
 
-func (c *Client) GetKey(keyID string) (*Key, error) {
-	resp, err := c.sendRequest("GET", fmt.Sprintf("/key/info?key=%s", keyID), nil)
+func (c *Client) GetKey(token string) (*Key, error) {
+	resp, err := c.sendRequest("GET", fmt.Sprintf("/key/info?key=%s", token), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (c *Client) GetKey(keyID string) (*Key, error) {
 func (c *Client) UpdateKey(key *Key) (*Key, error) {
 	// Create a new map with only the fields that can be updated
 	updateData := map[string]interface{}{
-		"key":              key.Key,
+		"key":              key.Token,
 		"team_id":          key.TeamID,
 		"metadata":         key.Metadata,
 		"budget_duration":  key.BudgetDuration,
@@ -167,9 +167,9 @@ func (c *Client) UpdateKey(key *Key) (*Key, error) {
 	return c.parseKeyResponse(resp)
 }
 
-func (c *Client) DeleteKey(keyID string) error {
+func (c *Client) DeleteKey(token string) error {
 	payload := map[string]interface{}{
-		"keys": []string{keyID},
+		"keys": []string{token},
 	}
 	_, err := c.sendRequest("POST", "/key/delete", payload)
 	return err
@@ -191,6 +191,10 @@ func (c *Client) parseKeyResponse(resp map[string]interface{}) (*Key, error) {
 		case "key":
 			if s, ok := v.(string); ok {
 				createdKey.Key = s
+			}
+		case "token":
+			if s, ok := v.(string); ok {
+				createdKey.Token = s
 			}
 		case "models":
 			if models, ok := v.([]interface{}); ok {
@@ -345,7 +349,7 @@ func (c *Client) sendRequest(method, path string, body interface{}) (map[string]
 	log.Printf("Response body: %s", c.redactSensitiveData(string(bodyBytes)))
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status code %d: %s", resp.StatusCode, string(bodyBytes))
+		return nil, fmt.Errorf("API request failed with status code %d: %s", resp.StatusCode, c.redactSensitiveData(string(bodyBytes)))
 	}
 
 	var result map[string]interface{}
