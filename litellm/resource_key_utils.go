@@ -95,6 +95,7 @@ func buildKeyData(d *schema.ResourceData) map[string]interface{} {
 func setKeyResourceData(d *schema.ResourceData, key *Key) error {
 	fields := map[string]interface{}{
 		"key":                    key.Key,
+		"token":                  key.Token,
 		"models":                 key.Models,
 		"spend":                  key.Spend,
 		"user_id":                key.UserID,
@@ -166,6 +167,8 @@ func mapToKey(data map[string]interface{}) *Key {
 		switch k {
 		case "key":
 			key.Key = v.(string)
+		case "token":
+			key.Token = v.(string)
 		case "models":
 			key.Models = v.([]string)
 		case "max_budget":

@@ -19,8 +19,14 @@ func resourceKey() *schema.Resource {
 		},
 		Schema: map[string]*schema.Schema{
 			"key": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Type:      schema.TypeString,
+				Computed:  true,
+				Sensitive: true,
+			},
+			"token": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "Hashed token identifier for the key (non-sensitive).",
 			},
 			"models": {
 				Type:     schema.TypeList,
@@ -145,7 +151,15 @@ func resourceKeyCreate(ctx context.Context, d *schema.ResourceData, m interface{
 		return diag.FromErr(fmt.Errorf("error creating key: %s", err))
 	}
 
-	d.SetId(createdKey.Key)
+	// Use the hashed token as the resource ID instead of the raw API key
+	// to prevent the secret key from being exposed in plan output and state
+	if createdKey.Token == "" {
+		return diag.FromErr(fmt.Errorf("API did not return a token for the created key"))
+	}
+	d.SetId(createdKey.Token)
+	// Store the raw key — this is the only time the API returns it
+	d.Set("key", createdKey.Key)
+
 	return resourceKeyRead(ctx, d, m)
 }
 
@@ -162,14 +176,20 @@ func resourceKeyRead(ctx context.Context, d *schema.ResourceData, m interface{})
 		return nil
 	}
 
+	// Preserve the raw secret key from state — the API only returns the
+	// hashed token on subsequent reads, not the original secret.
+	existingKey := d.Get("key").(string)
 	mapKeyToResourceData(d, key)
+	if existingKey != "" {
+		d.Set("key", existingKey)
+	}
 	return nil
 }
 
 func resourceKeyUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	c := m.(*Client)
 
-	key := &Key{Key: d.Id()}
+	key := &Key{Token: d.Id()}
 	mapResourceDataToKey(d, key)
 
 	_, err := c.UpdateKey(key)
@@ -234,6 +254,7 @@ func mapResourceDataToKey(d *schema.ResourceData, key *Key) {
 
 func mapKeyToResourceData(d *schema.ResourceData, key *Key) {
 	d.Set("key", key.Key)
+	d.Set("token", key.Token)
 
 	if len(key.Models) > 0 {
 		d.Set("models", key.Models)
