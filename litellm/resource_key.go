@@ -151,13 +151,10 @@ func resourceKeyCreate(ctx context.Context, d *schema.ResourceData, m interface{
 		return diag.FromErr(fmt.Errorf("error creating key: %s", err))
 	}
 
-	// Use the hashed token as the resource ID instead of the raw API key
-	// to prevent the secret key from being exposed in plan output and state
 	if createdKey.Token == "" {
 		return diag.FromErr(fmt.Errorf("API did not return a token for the created key"))
 	}
 	d.SetId(createdKey.Token)
-	// Store the raw key — this is the only time the API returns it
 	d.Set("key", createdKey.Key)
 
 	return resourceKeyRead(ctx, d, m)
@@ -176,8 +173,6 @@ func resourceKeyRead(ctx context.Context, d *schema.ResourceData, m interface{})
 		return nil
 	}
 
-	// Preserve the raw secret key from state — the API only returns the
-	// hashed token on subsequent reads, not the original secret.
 	existingKey := d.Get("key").(string)
 	mapKeyToResourceData(d, key)
 	if existingKey != "" {
